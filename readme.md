@@ -15,6 +15,7 @@ While not all JavaScript syntax has been implemented, the majority of commonly u
 How to allow eval in chrome extension
 
 
+
 ## Usage examples:
 
 ### Config
