@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TrashScript Test</title>
+    <link rel="stylesheet" href="test.css">
+    <script src="../trashscript.js"></script>
+    <style>
+        body{
+            background: #eff0f1;
+        }
+
+        body > .example{
+            display: flex;
+            width: 100%;
+        }
+        pre{
+            width: 50%;
+            box-sizing: border-box;
+            background: white;
+            border: 1px solid #bcbebf;
+        }
+        .result{
+            box-sizing: border-box;
+            width: 50%;
+            padding: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="example">
+    <pre><code>
+        a = null
+        b = a ? true: false
+        return a + "\n\"" + 0xff + " " + b
+    </code></pre>
+    <div class="result">123213</div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        a = [1,2,[3,4]]
+        alert(a[2][1])
+        return a
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        n = 1;
+        a = [1,2 + 2 * 3,-+-+n, !!n]
+        b = function(a){
+            return a
+        }
+        c = function(a){
+            return a
+        }(" 44")
+
+        d = (function(a){
+            return a
+        })(" 55")
+
+        e = (function(a){
+            return a
+        })
+        return a + ":" + b(33) + c + d + e(" 77");
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        a = [1,2,]
+        b = function(callback){
+            return callback();
+        }
+        c = b(function(){
+            return "array: ";
+        })
+
+        return JSON.stringify(c + ": " + a);
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        a = {a:11,b:true,c:"xxxx"+1};
+        return JSON.stringify(a)
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        alert(123)
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        a = [1,"2",true]
+        return a[0] + ":" + a[1] + ":" + a[2]
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        a = 2;
+        if(a === "2"){
+            alert(true)
+        }else{
+            return 1 + 2 * 2
+        }
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        for(i=0;i<1100000;++i){}
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        a = 3;
+        for(i=0,y=2;i < a,y<1;++i,++y){
+            if(i === 1){
+                print("continue")
+                continue
+            }else{
+                print("bbb" + i)
+            }
+            print(i)
+            ++i
+        }
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        a = 3;
+
+        while(a < 10)
+        {
+            print(a)
+            ++a
+            print("++a:" + a)
+        }
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<div class="example">
+    <pre><code>
+        var cc  = true
+        var obj = {
+            x:1,
+            fn1:function(a,b)
+            {
+                function xx(n){
+                    //print(this)
+                    //print(cc)
+                }
+                print(this.x)
+                //print(a + ":" + b)
+                xx(11)
+                alert(1)
+            }
+        }
+        //console.log(this)
+        obj.fn1(111,"aaa")
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<script>
+    TrashScript.bind({
+        console:console,
+        test:function(){},
+        print:console.log,
+        alert:function(x){
+            alert(x)
+        },
+        JSON:JSON
+    });
+    (function(){
+        var buttons = document.querySelectorAll(".Button");
+        var codes   = document.querySelectorAll("pre");
+        var results = document.querySelectorAll(".result");
+
+        for(var i=0;i<buttons.length;++i)
+        {
+            (function(i)
+            {
+                var button   = buttons[i];
+                var result   = results[i];
+                var disabled = false;
+
+                button.addEventListener("click",function()
+                {
+                    if(disabled){
+                        return;
+                    }
+                    disabled = true;
+                    button.className = "Button _disabled";
+
+                    var context = TrashScript(codes[i].innerText,function(e)
+                    {
+                        if(e.status === "complete"){
+                            disabled = false;
+                            button.className = "Button";
+                        }else if(e.status === "error"){
+                            disabled = false;
+                            button.className = "Button";
+                            codes[i].style.borderColor = "red";
+                        }
+                        result.innerHTML = JSON.stringify(e) + "<br/>result: <br/>" + e.result;
+                    });
+                    context.exec(window);
+                });
+            })(i);
+        }
+    })();
+
+</script>
+</body>
+</html>
