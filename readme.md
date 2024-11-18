@@ -1,4 +1,4 @@
-#Trash Script
+# Trash Script
 
 A very tiny JS-like script interpreter implemented throw JS.
 
@@ -11,19 +11,20 @@ TrashScript was originally designed for modules in the
 
 While not all JavaScript syntax has been implemented, the majority of commonly used syntax is available.
 
-###Keywords: How to allow eval in chrome extension
+### Keywords:
+How to allow eval in chrome extension
 
 
-##Usage examples:
+## Usage examples:
 
-###Config
+### Config
 ```
 TrashScript.config = {
     max_exec_limit:1000000 //default
 }
 ```
 
-###Basic
+### Basic
 ```
 var executor = TrashScript("Source code",function(e)
 {
@@ -36,7 +37,7 @@ var executor = TrashScript("Source code",function(e)
 executor.exec();
 ```
 
-###Bind existing JavaScript functions or objects
+### Bind existing JavaScript functions or objects
 ```
 TrashScript.bind("alert",function(arg){
     window.alert(arg);
@@ -52,7 +53,7 @@ TrashScript.bind({
 });
 ```
 
-###Context object for 'this'
+### Context object for 'this'
 ```
 var executor = TrashScript("function aaa(){alert(this)};return aaa()",function(e){...});
 executor.exec(window); //'this' is window
