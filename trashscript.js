@@ -38,7 +38,7 @@ var TrashScript = function(source,callback)
             var line_pos   = 0;
             var text       = "";
 
-            for(var i=0;i<=end;i++)
+            for(var i=0,length=Math.min(end + 1,source.length);i<length;i++)
             {
                 var c = source[i];
 

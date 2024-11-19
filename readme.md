@@ -1,6 +1,6 @@
 # Trash Script
 
-A very tiny JS-like script interpreter implemented throw JS.
+A very tiny JS-like script interpreter implemented through JS.
 
 Less than 10KB (gziped)
 
