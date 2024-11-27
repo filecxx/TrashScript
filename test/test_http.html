@@ -34,15 +34,18 @@
 <div class="example">
     <pre><code>
 
-result = HTTP.get("http://localhost:63342/");
+result = HTTP.post("http://localhost:63342/TrashScript/test/test.json",{
+	k_query: "111",
+  	k_page: "home",
+	hl: "en",
+  	q_auto: 1
+});
 
-console.log(result)
-console.log(result.status)
-console.log(result.header())
-console.log(result.data)
+if(result.header("1"))
+{
 
-return false;
-
+}
+return result.text
     </code></pre>
     <div class="result"></div>
 </div>
