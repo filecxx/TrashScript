@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TrashScript HTTP Test</title>
+    <link rel="stylesheet" href="test.css">
+    <script src="../trashscript.js"></script>
+    <script src="../trashscript_lib.js"></script>
+    <style>
+        body{
+            background: #eff0f1;
+        }
+
+        body > .example{
+            display: flex;
+            width: 100%;
+        }
+        pre{
+            width: 50%;
+            box-sizing: border-box;
+            background: white;
+            border: 1px solid #bcbebf;
+        }
+        .result{
+            box-sizing: border-box;
+            width: 50%;
+            padding: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="example">
+    <pre><code>
+
+result = HTTP.get("http://localhost");
+
+console.log(result)
+console.log(result.status)
+console.log(result.header())
+console.log(result.data)
+
+return false;
+
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<script>
+
+
+    (function(){
+        var buttons = document.querySelectorAll(".Button");
+        var codes   = document.querySelectorAll("pre");
+        var results = document.querySelectorAll(".result");
+
+        for(var i=0;i<buttons.length;++i)
+        {
+            (function(i)
+            {
+                var button   = buttons[i];
+                var result   = results[i];
+                var disabled = false;
+
+                button.addEventListener("click",function()
+                {
+                    if(disabled){
+                        return;
+                    }
+                    disabled = true;
+                    button.className = "Button _disabled";
+
+                    var context = TrashScript(codes[i].innerText,function(e)
+                    {
+                        if(e.status === "complete"){
+                            disabled = false;
+                            button.className = "Button";
+                        }else if(e.status === "error"){
+                            disabled = false;
+                            button.className = "Button";
+                            codes[i].style.borderColor = "red";
+                        }
+                        result.innerHTML = JSON.stringify(e) + "<br/>result: <br/>" + e.result;
+                    });
+                    context.exec(window);
+                });
+            })(i);
+        }
+    })();
+
+</script>
+</body>
+</html>

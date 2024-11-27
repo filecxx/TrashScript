@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TrashScript Async Test</title>
+    <link rel="stylesheet" href="test.css">
+    <script src="../trashscript.js"></script>
+    <script src="../trashscript_lib.js"></script>
+    <style>
+        body{
+            background: #eff0f1;
+        }
+
+        body > .example{
+            display: flex;
+            width: 100%;
+        }
+        pre{
+            width: 50%;
+            box-sizing: border-box;
+            background: white;
+            border: 1px solid #bcbebf;
+        }
+        .result{
+            box-sizing: border-box;
+            width: 50%;
+            padding: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="example">
+    <pre><code>
+        a = 3;
+
+        print("prepare " + [async_get(1),2,async_get(3),sleep(100)]);
+        sleep(500);
+
+        print("start");
+        sleep(500);
+        print("start1");
+        sleep(500);
+
+        print("start2: ");
+
+        sleep(500);
+        print("start3: ")
+
+        for(i=0;i<10;++i){
+            sleep(100);
+            print(i);
+
+        }
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+<div class="example">
+    <pre><code>
+        a = 3;
+
+        for(i=async_get(0);i< async_get(10);++i)
+        {
+            for(y=async_get(0);y< async_get(10);++y)
+            {
+                if(y === async_get(3)){
+                    continue;
+                }
+                if(y === async_get(4)){
+                    break;
+                }
+                sleep(100);
+                print(i + ":" + y);
+            }
+        }
+    </code></pre>
+    <div class="result"></div>
+</div>
+<div class="Button">Run</div>
+
+
+<script>
+
+    var async_get = async function(val)
+    {
+        return new Promise(function(resolve){
+            setTimeout(function(){
+                resolve(val);
+            },100);
+        });
+    }
+    var sleep = async function(val)
+    {
+        return new Promise(function(resolve){
+            setTimeout(function(){
+                resolve();
+            },val);
+        });
+    }
+
+    TrashScript.bind({
+
+        async_get:async_get,
+        console:console,
+        test:function(){},
+        print:console.log,
+        alert:function(x){
+            alert(x)
+        },
+        JSON:JSON
+    });
+    (function(){
+        var buttons = document.querySelectorAll(".Button");
+        var codes   = document.querySelectorAll("pre");
+        var results = document.querySelectorAll(".result");
+
+        for(var i=0;i<buttons.length;++i)
+        {
+            (function(i)
+            {
+                var button   = buttons[i];
+                var result   = results[i];
+                var disabled = false;
+
+                button.addEventListener("click",function()
+                {
+                    if(disabled){
+                        return;
+                    }
+                    disabled = true;
+                    button.className = "Button _disabled";
+
+                    var context = TrashScript(codes[i].innerText,function(e)
+                    {
+                        if(e.status === "complete"){
+                            disabled = false;
+                            button.className = "Button";
+                        }else if(e.status === "error"){
+                            disabled = false;
+                            button.className = "Button";
+                            codes[i].style.borderColor = "red";
+                        }
+                        result.innerHTML = JSON.stringify(e) + "<br/>result: <br/>" + e.result;
+                    });
+                    context.exec(window);
+                });
+            })(i);
+        }
+    })();
+
+</script>
+</body>
+</html>

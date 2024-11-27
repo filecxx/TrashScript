@@ -463,9 +463,33 @@ var TrashScript = function(source,callback)
             call:function(begin,end){
                 return error_status.set("max_exec_limit_exceeded",begin,end);
             }
+        },
+        illegal_statement:{
+            value:10,
+            call:function(begin,end){
+                return error_status.set("illegal_statement",begin,end);
+            }
         }
     }
-    var tokens_queue   = [];
+    var tokens_queue  = [];
+    var async_handler = function(){};
+
+    async_handler.prototype =
+    {
+        then:function(ctx,callback)
+        {
+            this.ctx_      = ctx;
+            this.callback_ = callback;
+
+            return this;
+        },
+        resolve:function(data)
+        {
+            if(this.callback_){
+                this.callback_.call(this.ctx_,data);
+            }
+        }
+    };
 
 
     ///--------------------------
@@ -555,6 +579,12 @@ var TrashScript = function(source,callback)
             return false;
         }
         return typeof(data) === "number" || typeof(data) === "string" || typeof(data) === "object" || typeof(data) === "function";
+    }
+    function is_async_function(fn){
+        return typeof(fn) === "function" && fn.constructor === (async function(){}).constructor;
+    }
+    function is_async_handler(data){
+        return data instanceof async_handler;
     }
 
 
@@ -1193,10 +1223,10 @@ var TrashScript = function(source,callback)
     {
         this.status          = "none";
         this.returned        = false;
-        this.looping         = false;
         this.result          = undefined;
         this.variable_map    = {};
         this.sections        = sections;
+        this.loops           = []; //element.state: 0: break, 1: looping, 2: continue
         this.callback        = null;
         this.exec_count      = 0;
         this.parent_executor = parent_executor;
@@ -1205,37 +1235,161 @@ var TrashScript = function(source,callback)
     }
     function_executor.prototype =
     {
+        perform:function(data,callback)
+        {
+            if(!is_async_handler(data)){
+                return callback.call(this,data);
+            }
+            var that    = this;
+            var handler = new async_handler();
+            var then    = function(data)
+            {
+                data.then(that,function(resolved)
+                {
+                    if(is_async_handler(resolved)){
+                        then(resolved);
+                    }else{
+                        handler.resolve(callback.call(that,resolved));
+                    }
+                });
+            }
+            then(data);
+
+            return handler;
+        },
+        perform_each_exec:function(items,callback,default_result)
+        {
+            var that   = this;
+            var result = undefined;
+            var keys   = null;
+            var async  = false;
+            var i      = 0;
+
+            var perform_array_element = function()
+            {
+                return that.perform(that.exec_token(items[i]),function(ret)
+                {
+                    if((result = callback.call(that,i,ret,i === items.length - 1)) === undefined)
+                    {
+                        if(async){
+                            i++;
+                            return perform_array();
+                        }
+                    }
+                    return result;
+                });
+            }
+            var perform_object_element = function()
+            {
+                var key = keys[i];
+
+                return that.perform(that.exec_token(items[key]),function(ret)
+                {
+                    if((result = callback.call(that,key,ret,i === keys.length - 1)) === undefined)
+                    {
+                        if(async){
+                            i++;
+                            return perform_object();
+                        }
+                    }
+                    return result;
+                });
+            }
+            var perform_array = function()
+            {
+                for(;i<items.length;++i)
+                {
+                    async = false;
+
+                    var ret = perform_array_element();
+
+                    if(is_async_handler(ret)){
+                        async = true;
+                        return ret;
+                    }
+                    if(ret !== undefined){
+                        return ret;
+                    }
+                }
+                return result;
+            }
+            var perform_object = function()
+            {
+                for(;i<keys.length;++i)
+                {
+                    async = false;
+
+                    var ret = perform_object_element();
+
+                    if(is_async_handler(ret)){
+                        async = true;
+                        return ret;
+                    }
+                    if(ret !== undefined){
+                        return ret;
+                    }
+                }
+                return result;
+            }
+
+            if(typeof(items) !== "object"){
+                alert("fatal: not an object")
+                return;
+            }
+            if(items instanceof Array)
+            {
+                if(items.length === 0){
+                    return default_result;
+                }
+                return perform_array();
+            }else{
+                keys = [];
+
+                for(var name in items){
+                    keys.push(name);
+                }
+                if(keys.length === 0){
+                    return default_result;
+                }
+                return perform_object();
+            }
+        },
+
+
         ///--------------------------
         exec_element_lookup:function(ctx_token,elements_token,callback)
         {
-            var elements = this.exec_token(elements_token);
-
-            if(elements instanceof Array && elements.length > 0)
+            return this.perform(this.exec_token(elements_token),function(elements)
             {
-                var ctx   = this.exec_token(ctx_token);
-                var index = elements[elements.length - 1];
-
-                if(typeof(index) !== "string" && typeof(index) !== "number"){
+                if(!(elements instanceof Array) || elements.length === 0){
                     runtime_error(elements_token,error_types.invalid_index_type);
                 }
-                if(!is_data_property_accessible(ctx)){
-                    runtime_error(elements_token,error_types.invalid_data_type);
-                }
-                return callback(ctx,index);
-            }
-            runtime_error(elements_token,error_types.invalid_index_type);
+                return this.perform(this.exec_token(ctx_token),function(ctx)
+                {
+                    var index = elements[elements.length - 1];
+
+                    if(!is_data_property_accessible(ctx)){
+                        runtime_error(ctx_token,error_types.invalid_data_type);
+                    }
+                    if(typeof(index) !== "string" && typeof(index) !== "number"){
+                        runtime_error(elements_token,error_types.invalid_index_type);
+                    }
+                    return callback(ctx,index);
+                });
+            });
         },
         exec_prop_lookup:function(ctx_token,prop_token,callback)
         {
             if(prop_token.type !== token_types.identifier){
                 runtime_error(prop_token,error_types.invalid_data_type);
             }
-            var ctx = this.exec_token(ctx_token);
-
-            if(is_data_property_accessible(ctx)){
+            return this.perform(this.exec_token(ctx_token),function(ctx)
+            {
+                if(!is_data_property_accessible(ctx)){
+                    runtime_error(ctx_token,error_types.invalid_data_type);
+                }
                 return callback(ctx,prop_token.value);
-            }
-            runtime_error(ctx_token,error_types.invalid_data_type);
+            });
         },
 
 
@@ -1264,23 +1418,24 @@ var TrashScript = function(source,callback)
         },
         exec_assignment:function(token,operator)
         {
-            var value = this.exec_token(token.value.right);
-
-            if(token.value.left.type === token_types.identifier)
+            return this.perform(this.exec_token(token.value.right),function(value)
             {
-                var var_name     = token.value.left.value;
-                var variable_map = this.variable_map;
+                if(token.value.left.type === token_types.identifier)
+                {
+                    var var_name     = token.value.left.value;
+                    var variable_map = this.variable_map;
 
-                if(operator.attr & operator_attrs.compound_assign){
-                    return variable_map[var_name] = operator.binary_exec(variable_map[var_name],value);
+                    if((operator.attr & operator_attrs.compound_assign)){
+                        return variable_map[var_name] = operator.binary_exec(variable_map[var_name],value);
+                    }
+                    return variable_map[var_name] = value;
+                }else if(token.value.left.type === token_types.data_element){
+                    return this.exec_data_element_assignment(token.value.left,operator,value);
+                }else if(is_prop_accessor_operator(token.value.left)){
+                    return this.exec_data_prop_assignment(token.value.left,token.value.right,operator,value);
                 }
-                return variable_map[var_name] = value;
-            }else if(token.value.left.type === token_types.data_element){
-                return this.exec_data_element_assignment(token.value.left,operator,value);
-            }else if(is_prop_accessor_operator(token.value.left)){
-                return this.exec_data_prop_assignment(token.value.left,token.value.right,operator,value);
-            }
-            runtime_error(token,error_types.invalid_data_type);
+                runtime_error(token,error_types.invalid_data_type);
+            });
         },
 
 
@@ -1306,39 +1461,46 @@ var TrashScript = function(source,callback)
         },
         exec_array:function(token)
         {
-            var items  = token.value;
+            var that   = this;
             var result = [];
 
-            result.length = items.length;
+            result.length = token.value.length;
 
-            for(var i=0;i<items.length;i++){
-                result[i] = this.exec_token(items[i]);
-            }
-            return result;
+            return that.perform_each_exec(token.value,function(i,data,final)
+            {
+                result[i] = data;
+
+                if(final){
+                    return result;
+                }
+            },result);
         },
         exec_args:function(token)
         {
-            var items  = token.value;
+            var items = token.value;
 
-            for(var i=0;i<items.length;i++)
-            {
-                var result = this.exec_token(items[i]);
-
-                if(i === items.length - 1){
-                    return result;
-                }
+            if(items.length === 0){
+                runtime_error(token,error_types.syntax_error);
             }
-            return runtime_error(token,error_types.syntax_error);
+            return this.perform_each_exec(items,function(i,data,final){
+                if(final){
+                    return data;
+                }
+            });
         },
         exec_object:function(token)
         {
-            var items  = token.value;
+            var that   = this;
             var result = {};
 
-            for(var name in items){
-                result[name] = this.exec_token(items[name]);
-            }
-            return result;
+            return that.perform_each_exec(token.value,function(name,data,final)
+            {
+                result[name] = data;
+
+                if(final){
+                    return result;
+                }
+            },result);
         },
         exec_unary_expr:function(token)
         {
@@ -1349,7 +1511,7 @@ var TrashScript = function(source,callback)
                 var origin = var_value;
                 var newval = var_value;
 
-                if(operator.attr & operator_attrs.creament)
+                if((operator.attr & operator_attrs.creament))
                 {
                     if(operator_name === "++"){
                         newval = token.value.left_side ? ++origin : origin++;
@@ -1387,7 +1549,9 @@ var TrashScript = function(source,callback)
                     return result.newval;
                 });
             }else{
-                return exec_unary(this.exec_token(token.value.data)).newval;
+                return this.perform(this.exec_token(token.value.data),function(data){
+                    return exec_unary(data).newval;
+                });
             }
         },
         exec_binary_expr:function(token)
@@ -1405,14 +1569,21 @@ var TrashScript = function(source,callback)
                 }
                 runtime_error(token,error_types.unknown_operator);
             }else if((operator.attr & operator_attrs.calculator) || (operator.attr & operator_attrs.comparator)){
-                return operator.binary_exec(this.exec_token(token.value.left),this.exec_token(token.value.right));
+                return this.perform(this.exec_token(token.value.left),function(left)
+                {
+                    return this.perform(this.exec_token(token.value.right),function(right){
+                        return operator.binary_exec(left,right);
+                    })
+                });
             }else{
                 runtime_error(token,error_types.invalid_data_type);
             }
         },
         exec_ternary_expr: function(token)
         {
-            return this.exec_token(token.value.left) ? this.exec_token(token.value.middle) : this.exec_token(token.value.right)
+            return this.perform(this.exec_token(token.value.left),function(cond){
+                return cond ? this.exec_token(token.value.middle) : this.exec_token(token.value.right)
+            });
         },
         exec_data_element:function(token)
         {
@@ -1427,12 +1598,14 @@ var TrashScript = function(source,callback)
 
             if(token.value.data.type === token_types.identifier){
                 func = this.exec_identifier(token.value.data);
-            }else if(token.value.data.type === token_types.data_element){
+            }else if(token.value.data.type === token_types.data_element)
+            {
                 this.exec_element_lookup(token.value.data.value.data,token.value.data.value.elements,function(ctx,index){
                     func_ctx = ctx;
                     func     = ctx[index];
                 });
-            }else if(token.value.data.type === token_types.binary_expr){
+            }else if(token.value.data.type === token_types.binary_expr)
+            {
                 if(is_prop_accessor_operator(token.value.data.value.operator)){
                     this.exec_prop_lookup(token.value.data.value.left,token.value.data.value.right,function(ctx,name){
                         func_ctx = ctx;
@@ -1442,114 +1615,165 @@ var TrashScript = function(source,callback)
             }else{
                 func = this.exec_token(token.value.data);
             }
-            if(typeof(func) !== "function") {
-                runtime_error(token,error_types.not_a_function);
-            }
-            var args = this.exec_array(token.value.args);
-
-            if((args instanceof Array)){
-                return func.apply(func_ctx || this.global_context,args);
-            }
-            runtime_error(token,error_types.invalid_arguments);
-        },
-        exec_sections:function(sections,tail_section)
-        {
-            for(var i=0;i<sections.length;++i)
+            return this.perform(func,function(func)
             {
-                this.exec_token(sections[i]);
-
-                if(this.returned || this.looping === 3){
-                    return;
-                }else if(this.looping === 2){
-                    break;
+                if(typeof(func) !== "function"){
+                    runtime_error(token,error_types.not_a_function);
                 }
-            }
-            if(tail_section)
-            {
-                if(tail_section instanceof Array){
-                    for(var y=0;y<tail_section.length;++y){
-                        this.exec_token(tail_section[y]);
+                return this.perform(this.exec_array(token.value.args),function(args)
+                {
+                    if(!(args instanceof Array)){
+                        runtime_error(token,error_types.invalid_arguments);
                     }
-                }else{
-                    this.exec_token(tail_section);
+                    var result = func.apply(func_ctx || this.global_context,args);
+
+                    if(is_async_function(func) && (result instanceof Promise))
+                    {
+                        var handler = new async_handler;
+
+                        result.then(function(data){
+                            handler.resolve(data);
+                        }).catch(function(e)
+                        {
+                            if(e === error_status){
+                                executor.invoke_callback(e,{status:"error",error:e});
+                            }else{
+                                handler.resolve(e);
+                            }
+                        });
+                        return handler;
+                    }
+                    return result;
+                });
+            });
+        },
+        exec_sections:function(sections,tail_section,loop)
+        {
+            return this.perform_each_exec(sections,function(i,_,final)
+            {
+                if(this.returned || (loop && loop.state === 0)){
+                    return true;
                 }
-            }
+                if(final || (loop && loop.state === 2))
+                {
+                    if(!tail_section){
+                        return true;
+                    }else if(tail_section instanceof Array){
+                        return this.exec_sections(tail_section);
+                    }else{
+                        return this.exec_token(tail_section);
+                    }
+                }
+            });
         },
         exec_if_condition:function(token)
         {
-            var body = token.value.body;
+            return this.perform(this.exec_token(token.value.condition),function(cond)
+            {
+                if(cond){
+                    return this.exec_sections(token.value.body);
+                }
+                if(token.value.else_body){
+                    return this.exec_sections(token.value.else_body);
+                }
+            });
+        },
+        exec_loop:function(conditions,body,tail_section)
+        {
+            var that  = this;
+            var async = false;
+            var loop  = {state:1,popped:false};
 
-            if(this.exec_token(token.value.condition)){
-                this.exec_sections(body);
-            }else if(token.value.else_body){
-                this.exec_sections(token.value.else_body);
+            var pop_loop = function()
+            {
+                if(!loop.popped){
+                    that.loops.pop();
+                    loop.popped = true;
+                }
             }
+            var perform_cond = function()
+            {
+                if(conditions.length === 0){
+                    return true;
+                }
+                return that.perform_each_exec(conditions,function(i,cond,final)
+                {
+                    if(!cond){
+                        return false;
+                    }
+                    if(final){
+                        return true;
+                    }
+                });
+            }
+            var perform_body = function()
+            {
+                if(!body){
+                    return false;
+                }
+                return that.perform(that.exec_sections(body,tail_section,loop),function()
+                {
+                    if(that.returned || loop.state !== 1){
+                        return false;
+                    }
+                    if(async){
+                        return perform_loop();
+                    }
+                });
+            }
+            var perform_loop = function()
+            {
+                while(!(that.returned || loop.state === 0))
+                {
+                    async = false;
+                    loop.state = 1;
+
+                    var ret = that.perform(perform_cond(),function(cond)
+                    {
+                        if(!cond){
+                            pop_loop();
+                            loop.state = 0;
+                            return false;
+                        }
+                        return perform_body();
+                    });
+                    if(is_async_handler(ret)){
+                        async = true;
+                        return ret;
+                    }
+                }
+                if(!async){
+                    pop_loop();
+                }
+            }
+            that.loops.push(loop);
+
+            return perform_loop();
         },
         exec_for_loop:function(token)
         {
+            var that       = this;
             var conditions = token.value.conditions;
-            var body       = token.value.body;
 
-            if(conditions[0].length > 0){
-                for(var i=0;i<conditions[0].length;++i){
-                    this.exec_token(conditions[0][i]);
-                }
+            if(conditions[0].length === 0){
+                return that.exec_loop(conditions[1],token.value.body,conditions[2].length === 0 ? undefined : conditions[2]);
             }
-            while(true)
-            {
-                for(var y=0;y<conditions[1].length;++y)
-                {
-                    var ret = this.exec_token(conditions[1][y]);
-
-                    if(!ret){
-                        this.looping = 0;
-                        return;
-                    }
+            return that.perform_each_exec(conditions[0],function(i,data,final){
+                if(final){
+                    return that.exec_loop(conditions[1],token.value.body,conditions[2].length === 0 ? undefined : conditions[2]);
                 }
-                if(!body){
-                    continue;
-                }
-                this.looping = 1;
-                this.exec_sections(body,conditions[2]);
-
-                if(this.returned || this.looping === 3){
-                    break;
-                }
-            }
-            this.looping = 0;
+            });
         },
         exec_while_loop:function(token)
         {
-            var conditions = token.value.conditions;
-            var body       = token.value.body;
-
-            while(true)
-            {
-                for(var y=0;y<conditions.length;++y)
-                {
-                    var ret = this.exec_token(conditions[y]);
-
-                    if(!ret){
-                        this.looping = 0;
-                        return;
-                    }
-                }
-                if(!body){
-                    continue;
-                }
-                this.looping = 1;
-                this.exec_sections(body);
-
-                if(this.returned || this.looping === 3){
-                    break;
-                }
-            }
-            this.looping = 0;
+            return this.exec_loop(token.value.conditions,token.value.body);
         },
         exec_return_value:function(token)
         {
-            this.result   = this.exec_token(token.value);
-            this.returned = true;
+            return this.perform(this.exec_token(token.value),function(result){
+                this.result   = result;
+                this.returned = true;
+            });
         },
         exec_functor:function(token)
         {
@@ -1561,23 +1785,24 @@ var TrashScript = function(source,callback)
                 for(var i=0;i<token.params.length;++i){
                     functor.variable_map[token.params[i]] = arguments[i];
                 }
-                functor.exec(function(e)
-                {
-
-                });
+                functor.exec(function(e){});
                 return functor.result;
             }
             if(token.name){
-                this.variable_map[token.name] = func;
+                that.variable_map[token.name] = func;
             }
             return func;
         },
         exec_typeof:function(token)
         {
             if(token.value instanceof Array){
-                return typeof(this.exec_token(token.value[token.value.length - 1]));
+                return this.perform(this.exec_token(token.value[token.value.length - 1]),function(data){
+                    return typeof(data);
+                })
             }
-            return typeof(this.exec_token(token.value));
+            return this.perform(this.exec_token(token.value),function(data){
+                return typeof(data);
+            })
         },
         exec_token:function(token)
         {
@@ -1625,10 +1850,16 @@ var TrashScript = function(source,callback)
             case token_types.functor:
                 return this.exec_functor(token);
             case token_types.break_loop:
-                this.looping = 3;
+                if(this.loops.length === 0){
+                    runtime_error(token,error_types.illegal_statement);
+                }
+                this.loops[this.loops.length - 1].state = 0;
                 break;
             case token_types.continue_loop:
-                this.looping = 2;
+                if(this.loops.length === 0){
+                    runtime_error(token,error_types.illegal_statement);
+                }
+                this.loops[this.loops.length - 1].state = 2;
                 break;
             case token_types.type_of:
                 return this.exec_typeof(token);
@@ -1640,8 +1871,9 @@ var TrashScript = function(source,callback)
         exec:function(callback)
         {
             this.callback = callback;
-            this.exec_sections(this.sections);
-            this.callback({status:"complete",result:this.result});
+            this.perform(this.exec_sections(this.sections),function(){
+                this.callback({status:"complete",result:this.result});
+            });
         }
     }
 
@@ -1666,6 +1898,14 @@ var TrashScript = function(source,callback)
         },
 
         ///-----------------
+        invoke_callback:function(status,data)
+        {
+            executor.status = status;
+            executor.callback && executor.callback(data);
+        },
+
+
+        ///-----------------
         exec:function(context)
         {
             if(this.is_running() || this.is_error()){
@@ -1686,12 +1926,10 @@ var TrashScript = function(source,callback)
 
             try{
                 (new function_executor(this.sections,null,context || this,context || this)).exec(function(e){
-                    executor.status = e.status;
-                    executor.callback && executor.callback(e);
+                    executor.invoke_callback(e.status,e);
                 });
             }catch(e){
-                executor.status = e;
-                executor.callback && executor.callback({status:"error",error:e});
+                this.invoke_callback(e,{status:"error",error:e});
             }
             return true;
         }
@@ -1702,7 +1940,7 @@ var TrashScript = function(source,callback)
 
 ///-----------------------------
 TrashScript.config     = {
-    max_exec_limit:1000000
+    max_exec_limit:10000000
 };
 TrashScript.perperties = {};
 TrashScript.bind       = function(name,value)
@@ -1726,3 +1964,18 @@ TrashScript.bind       = function(name,value)
     }
     return TrashScript;
 };
+
+TrashScript.bind({
+    is_number:function(data){
+        return typeof(data) === "number";
+    },
+    is_string:function(data){
+        return typeof(data) === "string";
+    },
+    is_object:function(data){
+        return typeof(data) === "object";
+    },
+    is_array:function(data){
+        return data instanceof Array;
+    }
+});
