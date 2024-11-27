@@ -32,6 +32,7 @@
 
 <div class="example">
     <pre><code>
+        console.log(global_var1);
         a = null
         b = a ? true: false
         return a + "\n\"" + 0xff + " " + b
@@ -249,7 +250,8 @@
                         }
                         result.innerHTML = JSON.stringify(e) + "<br/>result: <br/>" + e.result;
                     });
-                    context.exec(window);
+                    context.variables({global_var1:123}); //add global variables
+                    context.exec();
                 });
             })(i);
         }

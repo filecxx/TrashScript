@@ -75,7 +75,7 @@ for(i=0;i<5;++i){
 ### Config
 ```
 TrashScript.config = {
-    max_exec_limit:1000000 //default
+    max_exec_limit:10000000 //default
 }
 ```
 
@@ -89,6 +89,7 @@ var executor = TrashScript("return 123",function(e)
         console.log(e.result); //123
     }
 });
+executor.variables({global_var1:123}); //add global variables
 executor.exec();
 ```
 

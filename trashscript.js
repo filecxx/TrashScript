@@ -1885,6 +1885,7 @@ var TrashScript = function(source,callback)
         status: "none",
         callback: callback,
         sections: [],
+        global_variables: null,
 
         ///-----------------
         is_running:function(){
@@ -1906,6 +1907,17 @@ var TrashScript = function(source,callback)
 
 
         ///-----------------
+        variables:function(list)
+        {
+            if(typeof(list) === "object")
+            {
+                this.global_variables = {};
+
+                for(var name in list){
+                    this.global_variables[name] = list[name];
+                }
+            }
+        },
         exec:function(context)
         {
             if(this.is_running() || this.is_error()){
@@ -1925,7 +1937,15 @@ var TrashScript = function(source,callback)
             }
 
             try{
-                (new function_executor(this.sections,null,context || this,context || this)).exec(function(e){
+                var func = (new function_executor(this.sections,null,context || this,context || this));
+
+                if(this.global_variables)
+                {
+                    for(var name in this.global_variables){
+                        func.variable_map[name] = this.global_variables[name];
+                    }
+                }
+                func.exec(function(e){
                     executor.invoke_callback(e.status,e);
                 });
             }catch(e){
@@ -1949,7 +1969,7 @@ TrashScript.bind       = function(name,value)
         for(var key in name){
             TrashScript.bind(key,name[key]);
         }
-    }else if(typeof name === "string")
+    }else if(typeof name === "string" && !(name in TrashScript.perperties))
     {
         if(typeof(Object.defineProperty) !== "function"){
             TrashScript.perperties[name] = value;
