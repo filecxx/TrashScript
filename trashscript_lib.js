@@ -324,10 +324,13 @@
             });
         },
         alert:function(str){
-            if(alert){
-                alert(str)
-            }
+            alert && alert(str)
         },
+        URL: URL,
+        atob: atob,
+        btoa: btoa,
+        encodeURI: encodeURI,
+        encodeURIComponent: encodeURIComponent,
         console: console,
         JSON: JSON,
         HTTP: HTTP

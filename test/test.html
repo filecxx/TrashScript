@@ -35,6 +35,9 @@
         console.log(global_var1);
         a = null
         b = a ? true: false
+        if(!a || !b){
+            print("??")
+        }
         return a + "\n\"" + 0xff + " " + b
     </code></pre>
     <div class="result">123213</div>
@@ -150,7 +153,7 @@
 <div class="example">
     <pre><code>
         a = 3;
-        for(i=0,y=2;i < a,y<1;++i,++y){
+        for(i=0,y=0;i < a,y<15;++i,++y){
             if(i === 1){
                 print("continue")
                 continue

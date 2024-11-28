@@ -1182,7 +1182,8 @@ var TrashScript = function(source,callback)
             }
         }
         if(is_left_unary_operator(token)){
-            return parse_unary_left_expr(token,current_priority);
+            token = parse_unary_left_expr(token,current_priority);
+            current_priority = 0;
         }
         while(is_data_token(token))
         {
