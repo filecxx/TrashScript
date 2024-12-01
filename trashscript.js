@@ -649,7 +649,7 @@ var TrashScript = function(source,callback)
         {
             var c = source[i];
 
-            if(!isalnum(c) && c !== '_'){
+            if(!isalnum(c) && c !== '_' && c !== '$'){
                 break;
             }
             text += c;
@@ -991,7 +991,7 @@ var TrashScript = function(source,callback)
         skip_space();
         var name = null;
 
-        if(isalnum(source[i]) || source[i] === '_')
+        if(isalnum(source[i]) || source[i] === '_' || source[i] === '$')
         {
             var token = parse_token();
 
@@ -1040,7 +1040,7 @@ var TrashScript = function(source,callback)
 
         if(isdigit(c)){
             return parse_number();
-        }else if(isalpha(c) || c === '_'){
+        }else if(isalpha(c) || c === '_' || c === '$'){
             return parse_identifier();
         }else if(c === '"' || c === "'"){
             return parse_string(c);

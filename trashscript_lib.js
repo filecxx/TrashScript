@@ -1,5 +1,7 @@
 (function()
 {
+
+    ///---------------------------------------
     var HTTP = function(method,url,username,password)
     {
         this.url    = url;
@@ -52,6 +54,7 @@
     };
 
 
+    ///---------------------------------------
     HTTP.prototype =
         {
             /*
@@ -186,7 +189,7 @@
 
                     for(var name in opts.headers)
                     {
-                        var key   = name.toUpperCase();
+                        var key   = name.toLowerCase();
                         var value = opts.headers[name];
 
                         that.request_headers[key] = value;
@@ -312,6 +315,195 @@
     };
 
 
+    ///---------------------------------------
+    class DOMs
+    {
+        #elements;
+
+        constructor(data,ctx)
+        {
+            this.length    = 0;
+            this.#elements = [];
+
+            if(typeof(data) === "string")
+            {
+                try{
+                    let elements = null;
+
+                    if(typeof(ctx) === "string"){
+                        elements = document.querySelectorAll(ctx + " " + data);
+                    }else if(typeof(ctx) === "object"){
+                        if((ctx instanceof DOMs) && ctx.length > 0){
+                            elements = ctx.#elements[0].querySelectorAll(data);
+                        }
+                    }else{
+                        elements = document.querySelectorAll(data);
+                    }
+                    if(elements && elements.length)
+                    {
+                        for(let i=0;i<elements.length;i++){
+                            this.#elements.push(elements[i]);
+                            this.length++;
+                        }
+                    }
+                }catch(e){}
+            }else if(data instanceof DOMs){
+                for(let i=0;i<data.length;i++){
+                    this.#elements.push(data.#elements[i]);
+                    this.length++;
+                }
+            }else if(typeof(data) === "object" && ((data instanceof Array) || data.length))
+            {
+                for(let i=0;i<data.length;i++)
+                {
+                    let elem = data[i];
+
+                    if(elem instanceof DOMs){
+                        if(elem.length > 0){
+                            this.#elements.push(elem.#elements[0]);
+                            this.length++;
+                        }
+                    }else if(elem instanceof Element){
+                        this.#elements.push(elem);
+                        this.length++;
+                    }
+                }
+
+            }else if(data instanceof Element){
+                this.#elements.push(data);
+                this.length++;
+            }
+        }
+
+        eq(i)
+        {
+            if(typeof(i) === "number" && i < this.length){
+                return $(this.#elements[i]);
+            }
+            return null;
+        }
+        each(callback)
+        {
+            for(let i=0;i<this.length;i++)
+            {
+                let result = callback(i,this.eq(i));
+
+                if(result !== undefined){
+                    return result;
+                }
+            }
+        }
+
+        css(name)
+        {
+            if(this.length > 0 && typeof(name) === "string"){
+                return getComputedStyle(this.#elements[0])[name] || "";
+            }
+            return "";
+        }
+        attr(name)
+        {
+            if(this.length > 0 && typeof(name) === "string"){
+                return this.#elements[0].getAttribute(name);
+            }
+            return "";
+        }
+        text()
+        {
+            if(this.length > 0){
+                return this.#elements[0].innerText;
+            }
+            return "";
+        }
+        html()
+        {
+            if(this.length > 0){
+                return this.#elements[0].innerHTML;
+            }
+            return "";
+        }
+        parent()
+        {
+            if(this.length > 0)
+            {
+                let parent = this.#elements[0].parentElement;
+
+                if(parent){
+                    return $(parent);
+                }
+            }
+            return null;
+        }
+        children()
+        {
+            if(this.length > 0){
+                return $(this.#elements[0].children);
+            }
+            return $();
+        }
+        siblings()
+        {
+            if(this.length > 0)
+            {
+                let parent = this.#elements[0].parentElement;
+
+                if(parent){
+                    return $(parent.children);
+                }
+            }
+            return $();
+        }
+        next()
+        {
+            if(this.length > 0)
+            {
+                let element = this.#elements[0].nextElementSibling;
+
+                if(element){
+                    return $(element);
+                }
+            }
+            return null;
+        }
+        prev()
+        {
+            if(this.length > 0)
+            {
+                let element = this.#elements[0].previousElementSibling;
+
+                if(element){
+                    return $(element);
+                }
+            }
+            return null;
+        }
+        val()
+        {
+            let value = null;
+
+            if(this.length > 0)
+            {
+                let element = this.#elements[0];
+
+                if(element)
+                {
+                    if((value = element.value) === undefined){
+                        value = element.getAttribute("value");
+                    }
+                }
+            }
+            return value;
+        }
+    }
+
+
+    ///---------------------------------------
+    var $ = function(data,ctx)
+    {
+        return new DOMs(data,ctx);
+    }
+
+
     ///--------------------------------
     TrashScript.bind({
         timestamp:function(){
@@ -333,7 +525,8 @@
         encodeURIComponent: encodeURIComponent,
         console: console,
         JSON: JSON,
-        HTTP: HTTP
+        HTTP: HTTP,
+        $: $
     });
 
 
