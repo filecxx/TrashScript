@@ -523,6 +523,8 @@
         btoa: btoa,
         encodeURI: encodeURI,
         encodeURIComponent: encodeURIComponent,
+        decodeURI: decodeURI,
+        decodeURIComponent: decodeURIComponent,
         console: console,
         JSON: JSON,
         HTTP: HTTP,

@@ -1987,6 +1987,18 @@ TrashScript.bind       = function(name,value)
 };
 
 TrashScript.bind({
+    String: String,
+    Boolean: Boolean,
+    Number: Number,
+    Object: Object,
+    Array: Array,
+    Math: Math,
+    RegExp: RegExp,
+    parseInt: parseInt,
+    parseFloat: parseFloat,
+    BigInt: BigInt,
+    isNaN: isNaN,
+    isFinite: isFinite,
     is_number:function(data){
         return typeof(data) === "number";
     },
