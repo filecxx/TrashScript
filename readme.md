@@ -1,5 +1,6 @@
 # Trash Script
 
+
 TrashScript interpreter.
 
 
@@ -10,7 +11,10 @@ TrashScript was originally designed for modules in the
 
 While not all JavaScript syntax has been implemented, the most commonly used syntax is available.
 
+## [Documentation](https://github.com/filecxx/TrashScript/wiki)
 
+
+---
 ## Asynchronous to synchronous
 TrashScript does not provide any asynchronous interfaces and does not recommend using any callback-based asynchronous execution. 
 
@@ -66,7 +70,7 @@ for(i=0;i<5;++i){
 }
 ```
 
-
+---
 ## Usage examples:
 
 ### Config
