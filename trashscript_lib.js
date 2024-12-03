@@ -4,6 +4,9 @@
     ///---------------------------------------
     var HTTP = function(method,url,username,password)
     {
+        if(!(this instanceof HTTP)){
+            return new HTTP(method,url,username,password);
+        }
         this.url    = url;
         this.method = method.toUpperCase();
 
