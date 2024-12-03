@@ -1,18 +1,15 @@
 # Trash Script
 
-A tiny JS-like script interpreter.
+TrashScript interpreter.
 
-Less than 10KB (gzipped)
 
 The primary purpose of TrashScript is to execute scripts in environments where ```eval``` and ```new Function``` are restricted, such as in browser extensions.
 
 TrashScript was originally designed for modules in the
-[filecxx browser extension](https://github.com/filecxx/FileCentipede) such as "Third-Party Query Interfaces," which can run custom scripts.
+[filecxx browser extension](https://github.com/filecxx/FileCentipede) such as [Third-Party Query Interfaces](https://github.com/filecxx/FileCentipede/wiki/Third%E2%80%90party-query-interfaces) which can run custom scripts.
 
 While not all JavaScript syntax has been implemented, the most commonly used syntax is available.
 
-### Keywords:
-How to allow eval in chrome extension
 
 ## Asynchronous to synchronous
 TrashScript does not provide any asynchronous interfaces and does not recommend using any callback-based asynchronous execution. 
