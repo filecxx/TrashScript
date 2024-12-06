@@ -530,6 +530,8 @@
         decodeURIComponent: decodeURIComponent,
         console: console,
         JSON: JSON,
+        localStorage:localStorage,
+        sessionStorage:sessionStorage,
         HTTP: HTTP,
         $: $
     });
