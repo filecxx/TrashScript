@@ -469,6 +469,12 @@ var TrashScript = function(source,callback)
             call:function(begin,end){
                 return error_status.set("illegal_statement",begin,end);
             }
+        },
+        terminated:{
+            value:11,
+            call:function(begin,end){
+                return error_status.set("terminated",begin,end);
+            }
         }
     }
     var tokens_queue  = [];
@@ -1224,6 +1230,7 @@ var TrashScript = function(source,callback)
     {
         this.status          = "none";
         this.returned        = false;
+        this.terminating     = false;
         this.result          = undefined;
         this.variable_map    = {};
         this.sections        = sections;
@@ -1810,6 +1817,9 @@ var TrashScript = function(source,callback)
             if(++this.exec_count >= TrashScript.config.max_exec_limit){
                 runtime_error(token,error_types.max_exec_limit_exceeded);
             }
+            if(this.terminating){
+                runtime_error(token,error_types.terminated);
+            }
             switch(token.type)
             {
             case token_types.undefined:
@@ -1887,6 +1897,8 @@ var TrashScript = function(source,callback)
         callback: callback,
         sections: [],
         global_variables: null,
+        function_executor: null,
+
 
         ///-----------------
         is_running:function(){
@@ -1908,6 +1920,13 @@ var TrashScript = function(source,callback)
 
 
         ///-----------------
+        terminate:function()
+        {
+            if(!this.is_running() || !this.function_executor || this.function_executor.terminating){
+                return;
+            }
+            this.function_executor.terminating = true;
+        },
         variables:function(list)
         {
             if(typeof(list) === "object")
@@ -1938,15 +1957,15 @@ var TrashScript = function(source,callback)
             }
 
             try{
-                var func = (new function_executor(this.sections,null,context || this,context || this));
+                this.function_executor = (new function_executor(this.sections,null,context || this,context || this));
 
                 if(this.global_variables)
                 {
                     for(var name in this.global_variables){
-                        func.variable_map[name] = this.global_variables[name];
+                        this.function_executor.variable_map[name] = this.global_variables[name];
                     }
                 }
-                func.exec(function(e){
+                this.function_executor.exec(function(e){
                     executor.invoke_callback(e.status,e);
                 });
             }catch(e){
