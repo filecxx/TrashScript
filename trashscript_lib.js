@@ -488,14 +488,74 @@
             {
                 let element = this.#elements[0];
 
-                if(element)
-                {
-                    if((value = element.value) === undefined){
-                        value = element.getAttribute("value");
-                    }
+                if((value = element.value) === undefined){
+                    value = element.getAttribute("value");
                 }
             }
             return value;
+        }
+        prop(name)
+        {
+            if(this.length > 0)
+            {
+                let element = this.#elements[0];
+
+                if(typeof(name) === "string"){
+                    return element[name];
+                }else if(typeof(name) === "function")
+                {
+                    for(let key in element)
+                    {
+                        let result = name(key,element[key]);
+
+                        if(result !== undefined){
+                            return result;
+                        }
+                    }
+                }
+            }
+            return undefined;
+        }
+        data(name)
+        {
+            if(this.length > 0)
+            {
+                let dataset = this.#elements[0].dataset;
+
+                if(dataset)
+                {
+                    if(typeof(name) === "string"){
+                        return dataset[name];
+                    }else if(typeof(name) === "function")
+                    {
+                        for(let key in dataset)
+                        {
+                            let result = name(key,dataset[key]);
+
+                            if(result !== undefined){
+                                return result;
+                            }
+                        }
+                    }
+
+                }
+            }
+            return undefined;
+        }
+        click()
+        {
+            for(let i=0;i<this.length;++i)
+            {
+                let element = this.#elements[i];
+
+                if(typeof(element.click) === "function"){
+                    element.click();
+                }else{
+                    let e = document.createEvent("MouseEvents");
+                    e.initEvent('click',false,true);
+                    element.dispatchEvent(e);
+                }
+            }
         }
     }
 
