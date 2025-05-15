@@ -1,4 +1,7 @@
-
+/*
+ * TrashScript
+ * https://github.com/filecxx/TrashScript
+*/
 var TrashScript = function(source,callback)
 {
     var i            = 0;
@@ -189,7 +192,7 @@ var TrashScript = function(source,callback)
             }
         },
         "=":{
-            priority:3,
+            priority:2,
             attr: operator_attrs.assignment | operator_attrs.binary
         },
         "==":{

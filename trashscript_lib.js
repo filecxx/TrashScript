@@ -1,3 +1,7 @@
+/*
+ * TrashScript
+ * https://github.com/filecxx/TrashScript
+*/
 (function()
 {
 
@@ -504,8 +508,11 @@
                     return element[name];
                 }else if(typeof(name) === "function")
                 {
-                    for(let key in element)
+                    let keys = Object.keys(element);
+
+                    for(let i=0;i<keys.length;i++)
                     {
+                        let key    = keys[i];
                         let result = name(key,element[key]);
 
                         if(result !== undefined){
