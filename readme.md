@@ -1,4 +1,4 @@
-# Trash Script
+# 💩 Trash Script
 
 
 TrashScript interpreter.
